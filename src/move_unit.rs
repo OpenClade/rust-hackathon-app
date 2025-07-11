@@ -81,37 +81,46 @@ fn decide_target(arena: &ArenaState, ant: &Ant) -> Vec<HexCoord> {
 }
 
 fn build_path(q: i32, r: i32, target_q: i32, target_r: i32, steps: usize) -> Vec<HexCoord> {
+    let directions = [
+        (1, 0), (1, -1), (0, -1),
+        (-1, 0), (-1, 1), (0, 1),
+    ];
+
     let mut path = Vec::new();
     let mut current_q = q;
     let mut current_r = r;
 
     for _ in 0..steps {
-        let dq = target_q - current_q;
-        let dr = target_r - current_r;
-
-        if dq == 0 && dr == 0 {
+        if current_q == target_q && current_r == target_r {
             break;
         }
 
-        let next = if dq.abs() >= dr.abs() {
-            HexCoord {
-                q: current_q + dq.signum(),
-                r: current_r,
-            }
-        } else {
-            HexCoord {
-                q: current_q,
-                r: current_r + dr.signum(),
-            }
-        };
+        let mut best = None;
+        let mut best_dist = i32::MAX;
 
-        current_q = next.q;
-        current_r = next.r;
-        path.push(next);
+        for (dq, dr) in directions {
+            let nq = current_q + dq;
+            let nr = current_r + dr;
+            let dist = hex_distance(nq, nr, target_q, target_r);
+
+            if dist < best_dist {
+                best_dist = dist;
+                best = Some((nq, nr));
+            }
+        }
+
+        if let Some((nq, nr)) = best {
+            current_q = nq;
+            current_r = nr;
+            path.push(HexCoord { q: nq, r: nr });
+        } else {
+            break;
+        }
     }
 
     path
 }
+
 
 fn hex_distance(q1: i32, r1: i32, q2: i32, r2: i32) -> i32 {
     ((q1 - q2).abs()
