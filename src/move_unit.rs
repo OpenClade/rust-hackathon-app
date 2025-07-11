@@ -8,6 +8,7 @@ use reqwest::Client;
 struct MoveRequest {
     moves: Vec<MoveCommand>,
 }
+
 #[derive(Serialize)]
 struct HexCoord {
     q: i32,
@@ -24,17 +25,20 @@ pub async fn move_ant(
     arena: &ArenaState,
     ant: &Ant,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    // Загружаем .env
+    dotenv::dotenv().ok();
+
     let client = Client::new();
     let url = "https://games-test.datsteam.dev/api/move";
     let token = env::var("API_TOKEN").expect("API_TOKEN not set");
 
-    // Выбираем цель
-    let target = decide_target(arena, ant);
+    // Строим путь из нескольких шагов
+    let path = decide_target(arena, ant);
 
     let body = MoveRequest {
         moves: vec![MoveCommand {
             ant: ant.id.clone(),
-            path: vec![target],
+            path,
         }],
     };
 
@@ -56,33 +60,57 @@ pub async fn move_ant(
     }
 }
 
-fn decide_target(arena: &ArenaState, ant: &Ant) -> HexCoord {
-    // Если несём еду, идем домой
+fn decide_target(arena: &ArenaState, ant: &Ant) -> Vec<HexCoord> {
+    let steps = 5; // сколько клеток пройти за один запрос
+
     if ant.food.amount > 0 {
         let home = &arena.spot;
-        return step_towards(ant.q, ant.r, home.q, home.r);
+        return build_path(ant.q, ant.r, home.q, home.r, steps);
     }
 
-    // Ищем ближайшую еду
     if let Some(food) = arena.food.iter().min_by_key(|f| hex_distance(ant.q, ant.r, f.q, f.r)) {
-        return step_towards(ant.q, ant.r, food.q, food.r);
+        return build_path(ant.q, ant.r, food.q, food.r, steps);
     }
 
-    // Нет еды - идем вперед
-    HexCoord { q: ant.q + 1, r: ant.r }
+    // Нет еды — идем вперед
+    let mut path = Vec::new();
+    for i in 1..=steps {
+        path.push(HexCoord { q: ant.q + i as i32, r: ant.r });
+    }
+    path
 }
 
-fn step_towards(q: i32, r: i32, target_q: i32, target_r: i32) -> HexCoord {
-    let dq = target_q - q;
-    let dr = target_r - r;
+fn build_path(q: i32, r: i32, target_q: i32, target_r: i32, steps: usize) -> Vec<HexCoord> {
+    let mut path = Vec::new();
+    let mut current_q = q;
+    let mut current_r = r;
 
-    if dq != 0 {
-        HexCoord { q: q + dq.signum(), r }
-    } else if dr != 0 {
-        HexCoord { q, r: r + dr.signum() }
-    } else {
-        HexCoord { q, r }
+    for _ in 0..steps {
+        let dq = target_q - current_q;
+        let dr = target_r - current_r;
+
+        if dq == 0 && dr == 0 {
+            break;
+        }
+
+        let next = if dq.abs() >= dr.abs() {
+            HexCoord {
+                q: current_q + dq.signum(),
+                r: current_r,
+            }
+        } else {
+            HexCoord {
+                q: current_q,
+                r: current_r + dr.signum(),
+            }
+        };
+
+        current_q = next.q;
+        current_r = next.r;
+        path.push(next);
     }
+
+    path
 }
 
 fn hex_distance(q1: i32, r1: i32, q2: i32, r2: i32) -> i32 {
