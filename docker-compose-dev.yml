@@ -9,3 +9,5 @@ services:
       - RUST_LOG=info
     restart: unless-stopped
     command: sleep infinity
+    volumes:
+      - .:/workspace

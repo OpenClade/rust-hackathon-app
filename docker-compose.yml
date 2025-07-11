@@ -7,3 +7,5 @@ services:
     environment:
       - RUST_LOG=info
     restart: unless-stopped
+    volumes:
+      - .:/workspace
