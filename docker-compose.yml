@@ -1,0 +1,9 @@
+version: '3.9'
+
+services:
+  rustclient:
+    build: .
+    container_name: rust_api_client
+    environment:
+      - RUST_LOG=info
+    restart: unless-stopped

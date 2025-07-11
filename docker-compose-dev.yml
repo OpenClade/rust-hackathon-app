@@ -1,0 +1,11 @@
+#openclade@openclade:~/projects/hackaton$ cat docker-compose.yml
+version: '3.9'
+
+services:
+  rustclient:
+    build: ./.devcontainer/
+    container_name: rust_api_client
+    environment:
+      - RUST_LOG=info
+    restart: unless-stopped
+    command: sleep infinity
